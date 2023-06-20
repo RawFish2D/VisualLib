@@ -20,9 +20,13 @@ public class VertexBuffer {
 	private final LinkedList<VertexAttribute> vertexAttributes = new LinkedList<>();
 	private final LinkedList<ByteBuffer> buffers = new LinkedList<>();
 	private final LinkedList<ByteBuffer> temporaryBuffers = new LinkedList<>();
+	@Getter
 	private IntBuffer indexBuffer;
 
+	@Getter
 	private int totalBufferSize = 0;
+	@Getter
+	private int indexBufferSize = 0;
 
 	@Getter
 	private int vaoID = 0;
@@ -35,6 +39,7 @@ public class VertexBuffer {
 	private int indicesCountDrawing = 0;
 	private int drawType = GL_TRIANGLES;
 
+	@Getter
 	private ShaderProgram shader;
 
 	private int maxObjects = 2048;
@@ -45,16 +50,9 @@ public class VertexBuffer {
 
 	/**
 	 * Creates and binds VAO, VBO and EBO.
-	 *
-	 * @param vao If 0, will create and bind VAO.
-	 *            If not 0, will simply bind that VAO.
 	 */
-	public VertexBuffer(int vao) {
-		if (vao == 0) {
-			this.vaoID = glGenVertexArrays();
-		} else {
-			vaoID = vao;
-		}
+	public VertexBuffer() {
+		this.vaoID = glGenVertexArrays();
 		glBindVertexArray(vaoID);
 		this.vboID = glGenBuffers();
 		this.eboID = glGenBuffers();
@@ -154,13 +152,6 @@ public class VertexBuffer {
 	}
 
 	/**
-	 * @return index buffer.
-	 */
-	public IntBuffer getIndexBuffer() {
-		return indexBuffer;
-	}
-
-	/**
 	 * Binds EBO, uploads buffer via glBufferData, then unbinds EBO.
 	 */
 	public void uploadIndexBuffer() {
@@ -247,10 +238,15 @@ public class VertexBuffer {
 	 * After that you can use this for rendering.
 	 */
 	public void initBuffers() {
-		final int iBufferSize = maxObjects * indicesPerObject;
-		indexBuffer = BufferUtils.createIntBuffer(iBufferSize);
+		this.indexBufferSize = maxObjects * indicesPerObject;
+		this.indexBuffer = BufferUtils.createIntBuffer(indexBufferSize);
 
 		glBindVertexArray(vaoID);
+		glBindBuffer(GL_ARRAY_BUFFER, eboID);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, 0, GL_STREAM_DRAW);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, indexBufferSize, GL_STREAM_DRAW);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
 		glBindBuffer(GL_ARRAY_BUFFER, vboID);
 		glBufferData(GL_ARRAY_BUFFER, 0, GL_STREAM_DRAW);
 		glBufferData(GL_ARRAY_BUFFER, totalBufferSize, GL_STREAM_DRAW);
@@ -260,10 +256,51 @@ public class VertexBuffer {
 		glBindVertexArray(0);
 	}
 
+	/**
+	 * Resizes vertex and index buffers
+	 *
+	 * @param newMaxObjects - new max object count (object - triangle or quad)
+	 */
+	public void resizeBuffer(int newMaxObjects) {
+		this.maxObjects = newMaxObjects;
+
+		this.indexBufferSize = maxObjects * indicesPerObject;
+		this.indexBuffer = BufferUtils.createIntBuffer(indexBufferSize);
+
+		// TODO remake this for other type of buffer layouts
+		buffers.clear();
+		temporaryBuffers.clear();
+		totalBufferSize = 0;
+		for (VertexAttribute attribute : vertexAttributes) {
+			final int bufferSize = attribute.getSize() * verticesPerObject * maxObjects;
+			totalBufferSize += bufferSize;
+			final ByteBuffer buffer = BufferUtils.createByteBuffer(bufferSize);
+			buffers.add(buffer);
+			final ByteBuffer temporaryBuffer = BufferUtils.createByteBuffer(bufferSize);
+			temporaryBuffers.add(temporaryBuffer);
+		}
+
+		glBindVertexArray(vaoID);
+		glBindBuffer(GL_ARRAY_BUFFER, eboID);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, 0, GL_STREAM_DRAW);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, indexBufferSize, GL_STREAM_DRAW);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+		glBindBuffer(GL_ARRAY_BUFFER, vboID);
+		glBufferData(GL_ARRAY_BUFFER, 0, GL_STREAM_DRAW);
+		glBufferData(GL_ARRAY_BUFFER, totalBufferSize, GL_STREAM_DRAW);
+		initAttribArray();
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+		glBindVertexArray(0);
+
+		indicesCount = 0;
+		indicesCountDrawing = 0;
+		buffersChanged = true;
+	}
+
 	// TODO make this less ugly
 	private void initAttribArray() {
 		if (buffers.size() == 1) {
-
 			int stride = 0;
 			for (VertexAttribute attrib : vertexAttributes) {
 				stride += attrib.getSize();
@@ -329,13 +366,6 @@ public class VertexBuffer {
 			glDeleteBuffers(eboID);
 			eboID = 0;
 		}
-	}
-
-	/**
-	 * @return ShaderProgram object that was set with setShader() method.
-	 */
-	public final ShaderProgram getShader() {
-		return this.shader;
 	}
 
 	public static class VertexAttribute {

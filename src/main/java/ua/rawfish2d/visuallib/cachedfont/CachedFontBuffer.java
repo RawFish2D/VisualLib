@@ -40,7 +40,7 @@ public class CachedFontBuffer {
 		InputStream fragStream = getInputStream("shaders/font/cachedFont.frag");
 		shaderProgram.loadShaders(vertStream, fragStream);
 
-		vbo = new VertexBuffer(0);
+		vbo = new VertexBuffer();
 		vbo.setShader(shaderProgram);
 		vbo.setDrawType(GL11.GL_QUADS);
 		final int maxObjects = 4096;
