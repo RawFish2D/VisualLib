@@ -1,9 +1,6 @@
 package ua.rawfish2d.visuallib.font;
 
 import de.matthiasmann.twl.utils.PNGDecoder;
-import org.lwjgl.opengl.GL11;
-import org.lwjgl.opengl.GL12;
-import org.lwjgl.opengl.GL13;
 import ua.rawfish2d.visuallib.loader.TextureData;
 import ua.rawfish2d.visuallib.loader.TextureLoader;
 import ua.rawfish2d.visuallib.utils.GLSM;
@@ -26,7 +23,6 @@ import static org.lwjgl.opengl.GL30.*;
 
 public abstract class BaseSystemFontRender extends BaseFontRender {
 	protected CharData[] charsData;
-	protected Font font;
 	protected boolean antiAlias;
 	protected boolean fractionalMetrics;
 	protected int fontHeight = -1;
@@ -37,42 +33,49 @@ public abstract class BaseSystemFontRender extends BaseFontRender {
 	public BaseSystemFontRender(Font font, int textureWidth, int textureHeight, boolean antiAlias, boolean fractionalMetrics, int charactersCount, int fontMarginX, int fontMarginY, boolean useOneColor) {
 		this.textureWidth = textureWidth;
 		this.textureHeight = textureHeight;
-		this.font = font;
 		this.antiAlias = antiAlias;
 		this.fractionalMetrics = fractionalMetrics;
-		this.charsData = new CharData[charactersCount];
 		this.fontMarginX = fontMarginX;
 		this.fontMarginY = fontMarginY;
 		this.useOneColor = useOneColor;
-		uploadBufferedImageToGPU(generateFontImage(), true);
+		uploadBufferedImageToGPU(generateFontImage(font, null, charactersCount), true);
 	}
 
-	public BaseSystemFontRender(Font font, String imageFileName, String charsDataFileName, boolean useOneColor) {
+	public BaseSystemFontRender(Font font, int textureWidth, int textureHeight, boolean antiAlias, boolean fractionalMetrics, char[] chars, int fontMarginX, int fontMarginY, boolean useOneColor) {
+		this.textureWidth = textureWidth;
+		this.textureHeight = textureHeight;
+		this.antiAlias = antiAlias;
+		this.fractionalMetrics = fractionalMetrics;
+		this.fontMarginX = fontMarginX;
+		this.fontMarginY = fontMarginY;
 		this.useOneColor = useOneColor;
-		this.font = font;
+		uploadBufferedImageToGPU(generateFontImage(font, chars, chars.length), true);
+	}
+
+	public BaseSystemFontRender(String imageFileName, String charsDataFileName, boolean useOneColor) {
+		this.useOneColor = useOneColor;
 		loadTexture(imageFileName, true);
 		loadCharactersData(charsDataFileName);
 	}
 
 	private void loadTexture(String imageFileName, boolean pixelated) {
-		PNGDecoder.Format format = PNGDecoder.Format.RGBA;
-		TextureData texture = TextureLoader.getImageData(imageFileName, format);
+		final TextureData texture = TextureLoader.getImageData(imageFileName, PNGDecoder.Format.RGBA);
 
-		this.textureWidth = (int) texture.width;
-		this.textureHeight = (int) texture.height;
+		this.textureWidth = texture.width;
+		this.textureHeight = texture.height;
 		this.fontTextureID = GLSM.instance.glGenTextures();
 		GLSM.instance.glBindTexture(fontTextureID);
 
 		if (pixelated) {
-			GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_NEAREST);
-			GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_NEAREST);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		} else {
-			GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_LINEAR);
-			GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		}
 
-		GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, GL13.GL_CLAMP_TO_BORDER);
-		GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, GL13.GL_CLAMP_TO_BORDER);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
 
 		ByteBuffer buffer = ByteBuffer.allocateDirect(textureWidth * textureHeight);
 		for (int index = 0; index < texture.data.capacity(); ++index) {
@@ -83,19 +86,18 @@ public abstract class BaseSystemFontRender extends BaseFontRender {
 		}
 		buffer.flip();
 
-		// FontTestOld.print("texture size: " + OtherUtils.humanReadableByteCountBin(textureWidth * textureHeight * format.getNumComponents()));
 		if (useOneColor) {
-			GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL11.GL_RED, textureWidth, textureHeight, 0, GL11.GL_RED, GL11.GL_UNSIGNED_BYTE, buffer);
-			GL11.glPixelStorei(GL11.GL_UNPACK_ALIGNMENT, 1);
-			GL11.glPixelStorei(GL11.GL_PACK_ALIGNMENT, 1);
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, textureWidth, textureHeight, 0, GL_RED, GL_UNSIGNED_BYTE, buffer);
+			glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+			glPixelStorei(GL_PACK_ALIGNMENT, 1);
 		} else {
-			GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL11.GL_RGBA8, textureWidth, textureHeight, 0, GL11.GL_RGBA8, GL12.GL_UNSIGNED_INT_8_8_8_8_REV, texture.data);
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, textureWidth, textureHeight, 0, GL_RGBA8, GL_UNSIGNED_INT_8_8_8_8_REV, texture.data);
 		}
 	}
 
-	protected BufferedImage generateFontImage() {
-		BufferedImage bufferedImage = new BufferedImage(textureWidth, textureHeight, BufferedImage.TYPE_INT_ARGB);
-		Graphics2D g = (Graphics2D) bufferedImage.getGraphics();
+	protected BufferedImage generateFontImage(Font font, char[] chars, int charsCount) {
+		final BufferedImage bufferedImage = new BufferedImage(textureWidth, textureHeight, BufferedImage.TYPE_INT_ARGB);
+		final Graphics2D g = (Graphics2D) bufferedImage.getGraphics();
 		g.setFont(font);
 		g.setColor(new Color(255, 255, 255, 0));
 		g.fillRect(0, 0, textureWidth, textureHeight);
@@ -103,50 +105,65 @@ public abstract class BaseSystemFontRender extends BaseFontRender {
 		g.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, fractionalMetrics ? RenderingHints.VALUE_FRACTIONALMETRICS_ON : RenderingHints.VALUE_FRACTIONALMETRICS_OFF);
 		g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, antiAlias ? RenderingHints.VALUE_TEXT_ANTIALIAS_ON : RenderingHints.VALUE_TEXT_ANTIALIAS_OFF);
 		g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, antiAlias ? RenderingHints.VALUE_ANTIALIAS_ON : RenderingHints.VALUE_ANTIALIAS_OFF);
-		FontMetrics fontMetrics = g.getFontMetrics();
+		final FontMetrics fontMetrics = g.getFontMetrics();
 		int charHeight = 0;
 		int positionX = 0;
 		int positionY = 1;
 
+		if (chars != null) {
+			charsCount = chars[chars.length - 1];
+		}
+		this.charsData = new CharData[charsCount];
+
+		int charsIndex = 0;
 		for (int i = 0; i < charsData.length; ++i) {
-			char ch = (char) i;
-			CharData data = new CharData();
-			charsData[i] = data;
+			final char ch;
+
+			final CharData charData = new CharData();
+			charsData[i] = charData;
+
+			if (chars == null) {
+				ch = (char) i;
+			} else {
+				ch = chars[charsIndex];
+				if (ch == i) {
+					charsIndex++;
+				} else {
+					continue;
+				}
+			}
 			if (!font.canDisplay(ch)) {
 				continue;
 			}
 
-			// new
-			// int fontMarginX = 2;
-			// int fontMarginY = 3;
+			final Rectangle2D dimensions = fontMetrics.getStringBounds(String.valueOf(ch), g);
+			charData.character = i;
+			charData.charWidth = dimensions.getBounds().width;
+			charData.width = (int) (charData.charWidth + fontMarginX);
+			charData.height = dimensions.getBounds().height;
 
-			Rectangle2D dimensions = fontMetrics.getStringBounds(String.valueOf(ch), g);
-			data.charWidth = dimensions.getBounds().width;
-			data.width = (int) (data.charWidth + fontMarginX);
-			data.height = dimensions.getBounds().height;
-
-			if (data.height > charHeight) {
-				charHeight = data.height + fontMarginY;
+			if (charData.height > charHeight) {
+				charHeight = charData.height + fontMarginY;
 				this.fontHeight = charHeight;
 			}
 
-			if (positionX + data.width >= textureWidth) {
+			if (positionX + charData.width >= textureWidth) {
 				positionX = 0;
 				positionY += charHeight;
 				charHeight = 0;
 			}
 
-			float renderX = ((float) positionX) / textureWidth;
-			float renderY = ((float) positionY) / textureHeight;
-			float renderWidth = ((float) data.width) / textureWidth;
-			float renderHeight = ((float) data.height) / textureHeight;
-			data.u0 = renderX;
-			data.v0 = renderY;
-			data.u1 = renderX + renderWidth;
-			data.v1 = renderY + renderHeight;
+			final float renderX = ((float) positionX) / textureWidth;
+			final float renderY = ((float) positionY) / textureHeight;
+			final float renderWidth = ((float) charData.width) / textureWidth;
+			final float renderHeight = ((float) charData.height) / textureHeight;
+			charData.u0 = renderX;
+			charData.v0 = renderY;
+			charData.u1 = renderX + renderWidth;
+			charData.v1 = renderY + renderHeight;
 
 			g.drawString(String.valueOf(ch), positionX + 2, positionY + fontMetrics.getAscent());
-			positionX += data.width;
+			positionX += charData.width;
 		}
 
 		g.fillRect(0, textureHeight - 2, textureWidth, textureHeight - 1);
@@ -167,7 +184,7 @@ public abstract class BaseSystemFontRender extends BaseFontRender {
 		try (BufferedWriter out = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file, false), StandardCharsets.UTF_8))) {
 			out.write(String.format(Locale.US, "%d\r\n", charsData.length));
 			for (final CharData charData : charsData) {
-				final String text = String.format(Locale.US, "%f %f %f %f %f %f %f\r\n", (float) charData.width, (float) charData.height, charData.charWidth, charData.u0, charData.v0, charData.u1, charData.v1);
+				final String text = String.format(Locale.US, "%d %f %f %f %f %f %f %f\r\n", charData.character, (float) charData.width, (float) charData.height, charData.charWidth, charData.u0, charData.v0, charData.u1, charData.v1);
 				out.write(text);
 			}
 		} catch (IOException ex) {
@@ -183,15 +200,17 @@ public abstract class BaseSystemFontRender extends BaseFontRender {
 			charsData = new CharData[length];
 			while ((currentLine = reader.readLine()) != null) {
 				final String[] split = currentLine.split(" ");
-				if (split.length == 7) {
+				if (split.length == 8) {
 					final CharData data = new CharData();
-					data.width = (int) Float.parseFloat(split[0]);
-					data.height = (int) Float.parseFloat(split[1]);
-					data.charWidth = Float.parseFloat(split[2]);
-					data.u0 = Float.parseFloat(split[3]);
-					data.v0 = Float.parseFloat(split[4]);
-					data.u1 = Float.parseFloat(split[5]);
-					data.v1 = Float.parseFloat(split[6]);
+					int i = 0;
+					data.character = Integer.parseInt(split[i++]);
+					data.width = (int) Float.parseFloat(split[i++]);
+					data.height = (int) Float.parseFloat(split[i++]);
+					data.charWidth = Float.parseFloat(split[i++]);
+					data.u0 = Float.parseFloat(split[i++]);
+					data.v0 = Float.parseFloat(split[i++]);
+					data.u1 = Float.parseFloat(split[i++]);
+					data.v1 = Float.parseFloat(split[i++]);
 					charsData[index++] = data;
 
 					if (data.height > fontHeight) {
@@ -213,14 +232,14 @@ public abstract class BaseSystemFontRender extends BaseFontRender {
 		final float u1 = charData.u1;
 		final float v1 = charData.v1;
 
-		GL11.glTexCoord2f(u1, v1);
-		GL11.glVertex2f(x + width, y + height);
-		GL11.glTexCoord2f(u1, v0);
-		GL11.glVertex2f(x + width, y);
-		GL11.glTexCoord2f(u0, v0);
-		GL11.glVertex2f(x, y);
-		GL11.glTexCoord2f(u0, v1);
-		GL11.glVertex2f(x, y + height);
+		glTexCoord2f(u1, v1);
+		glVertex2f(x + width, y + height);
+		glTexCoord2f(u1, v0);
+		glVertex2f(x + width, y);
+		glTexCoord2f(u0, v0);
+		glVertex2f(x, y);
+		glTexCoord2f(u0, v1);
+		glVertex2f(x, y + height);
 	}
 
 	@Override
@@ -297,24 +316,19 @@ public abstract class BaseSystemFontRender extends BaseFontRender {
 		GLSM.instance.glBindTexture(fontTextureID);
 
 		if (pixelated) {
-			GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_NEAREST);
-			GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_NEAREST);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		} else {
-			GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_LINEAR);
-			GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		}
 
-		GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, GL13.GL_CLAMP_TO_BORDER);
-		GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, GL13.GL_CLAMP_TO_BORDER);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
 
 		if (useOneColor) {
-			int bufferSize = width * height;
-
-			ByteBuffer imageData = null;
-			if (imageData == null || imageData.capacity() < bufferSize) {
-				bufferSize = ceilPowerOfTwo(bufferSize);
-				imageData = ByteBuffer.allocateDirect(bufferSize).order(ByteOrder.nativeOrder());
-			}
+			int bufferSize = ceilPowerOfTwo(width * height);
+			final ByteBuffer imageData = ByteBuffer.allocateDirect(bufferSize).order(ByteOrder.nativeOrder());
 			imageData.clear();
 
 			for (int y = 0; y < height; ++y) {
@@ -324,16 +338,13 @@ public abstract class BaseSystemFontRender extends BaseFontRender {
 				}
 			}
 			imageData.position(0).limit(bufferSize);
-			GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL11.GL_RED, width, height, 0, GL11.GL_RED, GL11.GL_UNSIGNED_BYTE, imageData);
-			GL11.glPixelStorei(GL11.GL_UNPACK_ALIGNMENT, 1);
-			GL11.glPixelStorei(GL11.GL_PACK_ALIGNMENT, 1);
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, width, height, 0, GL_RED, GL_UNSIGNED_BYTE, imageData);
+			glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+			glPixelStorei(GL_PACK_ALIGNMENT, 1);
 			imageData.clear();
 		} else {
-			int bufferSize = width * height * Integer.BYTES;
-
-			IntBuffer imageData = null;
-			bufferSize = ceilPowerOfTwo(bufferSize);
-			imageData = ByteBuffer.allocateDirect(bufferSize * Integer.BYTES).order(ByteOrder.nativeOrder()).asIntBuffer();
+			int bufferSize = ceilPowerOfTwo(width * height * Integer.BYTES);
+			final IntBuffer imageData = ByteBuffer.allocateDirect(bufferSize * Integer.BYTES).order(ByteOrder.nativeOrder()).asIntBuffer();
 			imageData.clear();
 
 			for (int y = 0; y < height; ++y) {
@@ -343,7 +354,7 @@ public abstract class BaseSystemFontRender extends BaseFontRender {
 				}
 			}
 			imageData.position(0).limit(bufferSize);
-			GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL11.GL_RGBA8, width, height, 0, GL11.GL_RGBA8, GL12.GL_UNSIGNED_INT_8_8_8_8_REV, imageData);
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA8, GL_UNSIGNED_INT_8_8_8_8_REV, imageData);
 			imageData.clear();
 		}
 
@@ -364,6 +375,7 @@ public abstract class BaseSystemFontRender extends BaseFontRender {
 	}
 
 	protected static class CharData {
+		public int character = 0;
 		public int width = 0;
 		public int height = 0;
 		public float charWidth = 0;

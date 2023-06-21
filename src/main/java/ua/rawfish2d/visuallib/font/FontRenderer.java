@@ -12,9 +12,7 @@ import java.util.concurrent.ThreadLocalRandom;
 public class FontRenderer extends BaseSystemFontRender {
 	private RenderContext renderContext;
 	private final int[] colorCode = new int[32];
-
 	private int currentColor = 0xFFFFFFFF;
-
 	private boolean randomStyle = false;
 	private boolean boldStyle = false;
 	private boolean strikethroughStyle = false;
@@ -34,8 +32,18 @@ public class FontRenderer extends BaseSystemFontRender {
 		initColorCodes();
 	}
 
-	public FontRenderer(Font font, String imageFileName, String charsDataFileName) {
-		super(font, imageFileName, charsDataFileName, true);
+	public FontRenderer(Font font, int imgWidth, int imgHeight, boolean antiAlias, boolean fractionalMetrics, int fontMarginX, int fontMarginY, char[] chars) {
+		super(font, imgWidth, imgHeight, antiAlias, fractionalMetrics, chars, fontMarginX, fontMarginY, true);
+		final float u0 = 0f;
+		final float u1 = 0.0078125f;
+		final float v0 = 0.99975586f;
+		final float v1 = 1.0f;
+		geomUV.set(u0, u1, v0, v1);
+		initColorCodes();
+	}
+
+	public FontRenderer(String imageFileName, String charsDataFileName) {
+		super(imageFileName, charsDataFileName, true);
 		final float u0 = 0f;
 		final float u1 = 0.0078125f;
 		final float v0 = 0.99975586f;
@@ -79,7 +87,7 @@ public class FontRenderer extends BaseSystemFontRender {
 						this.underlineStyle = false;
 						this.italicStyle = false;
 
-						if (colorIndex < 0 || colorIndex > 15) {
+						if (colorIndex < 0) {
 							colorIndex = 15;
 						}
 
@@ -99,7 +107,7 @@ public class FontRenderer extends BaseSystemFontRender {
 						this.underlineStyle = true;
 					} else if (colorIndex == 20) {
 						this.italicStyle = true;
-					} else if (colorIndex == 21) {
+					} else {
 						this.randomStyle = false;
 						this.boldStyle = false;
 						this.strikethroughStyle = false;
@@ -172,26 +180,25 @@ public class FontRenderer extends BaseSystemFontRender {
 
 		final float width = charData.width * this.scale;
 		final float height = charData.height * this.scale;
-		float u0 = charData.u0;
-		float v0 = charData.v0;
-		float u1 = charData.u1;
-		float v1 = charData.v1;
-
-		final float f5 = this.italicStyle ? 2f : 0.0f;
+		final float u0 = charData.u0;
+		final float v0 = charData.v0;
+		final float u1 = charData.u1;
+		final float v1 = charData.v1;
+		final float italicOffset = this.italicStyle ? 2f : 0f;
 
 		final RenderBuffer renderBuffer = renderContext.getRenderBuffer();
-		renderBuffer.addVertex(x + width - f5, y + height, currentColor, u1, v1);
-		renderBuffer.addVertex(x + width + f5, y, currentColor, u1, v0);
-		renderBuffer.addVertex(x + f5, y, currentColor, u0, v0);
-		renderBuffer.addVertex(x - f5, y + height, currentColor, u0, v1);
+		renderBuffer.addVertex(x + width - italicOffset, y + height, currentColor, u1, v1);
+		renderBuffer.addVertex(x + width + italicOffset, y, currentColor, u1, v0);
+		renderBuffer.addVertex(x + italicOffset, y, currentColor, u0, v0);
+		renderBuffer.addVertex(x - italicOffset, y + height, currentColor, u0, v1);
 		renderBuffer.addIndexCount(6);
 	}
 
 	@Override
 	public int getStringWidth(String text) {
-		float width = 0;
 		final int size = text.length();
 		final char[] chars = text.toCharArray();
+		float width = 0;
 		int index = 0;
 
 		char character = ' ';
@@ -204,22 +211,11 @@ public class FontRenderer extends BaseSystemFontRender {
 					int colorIndex = "0123456789abcdefklmnor".indexOf(c);
 
 					if (colorIndex < 16) {
-						this.randomStyle = false;
 						this.boldStyle = false;
-						this.strikethroughStyle = false;
-						this.underlineStyle = false;
-						this.italicStyle = false;
-
 					} else if (colorIndex == 17) {
 						this.boldStyle = true;
-					} else if (colorIndex == 20) {
-						this.italicStyle = true;
 					} else if (colorIndex == 21) {
-						this.randomStyle = false;
 						this.boldStyle = false;
-						this.strikethroughStyle = false;
-						this.underlineStyle = false;
-						this.italicStyle = false;
 					}
 					++index;
 				} else {
@@ -259,12 +255,12 @@ public class FontRenderer extends BaseSystemFontRender {
 		return (int) Math.ceil(height);
 	}
 
-	public void initColorCodes() {
+	private void initColorCodes() {
 		for (int i = 0; i < colorCode.length; ++i) {
 			int j = (i >> 3 & 1) * 85;
 			int r = (i >> 2 & 1) * 170 + j;
 			int g = (i >> 1 & 1) * 170 + j;
-			int b = (i >> 0 & 1) * 170 + j;
+			int b = (i & 1) * 170 + j;
 
 			if (i == 6) {
 				r += 85;
