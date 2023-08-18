@@ -1,8 +1,8 @@
 package ua.rawfish2d.visuallib.framebuffer;
 
+import lombok.Getter;
 import org.lwjgl.opengl.GL;
-import org.lwjgl.opengl.GL30;
-import ua.rawfish2d.visuallib.utils.GLSM;
+import ua.rawfish2d.visuallib.texture.TextureUtils;
 import ua.rawfish2d.visuallib.utils.RenderContext;
 
 import static org.lwjgl.opengl.GL11.*;
@@ -13,16 +13,42 @@ public class FrameBuffer {
 	protected final int height;
 	protected int frameBufferID = 0;
 	protected int textureID = 0;
-	protected boolean useDepth = false;
+	@Getter
+	protected final boolean hasDepthBuffer;
 	protected int renderBufferID = 0;
 	protected boolean complete = false;
 	protected final RenderContext.Clearcolor clearcolor = new RenderContext.Clearcolor();
 	protected final RenderContext.Viewport viewport = new RenderContext.Viewport();
+	@Getter
+	protected final int layerCount;
 
-	public FrameBuffer(int width, int height, boolean pixelated, boolean useDepth) {
-		this.useDepth = useDepth;
+	public FrameBuffer(int width, int height, boolean hasDepthBuffer) {
+		this(width, height, GL_REPEAT, GL_REPEAT, GL_NEAREST, GL_NEAREST, hasDepthBuffer);
+	}
+
+	public FrameBuffer(int width, int height, int filteringMin, int filteringMax, boolean hasDepthBuffer) {
+		this(width, height, GL_REPEAT, GL_REPEAT, filteringMin, filteringMax, hasDepthBuffer);
+	}
+
+	public FrameBuffer(int width, int height, int wrapS, int wrapT, int filteringMin, int filteringMax, boolean hasDepthBuffer) {
+		this(width, height, wrapS, wrapT, filteringMin, filteringMax, hasDepthBuffer, 1);
+	}
+
+	public FrameBuffer(int width, int height, boolean hasDepthBuffer, int layerCount) {
+		this(width, height, GL_REPEAT, GL_REPEAT, GL_NEAREST, GL_NEAREST, hasDepthBuffer, layerCount);
+	}
+
+	public FrameBuffer(int width, int height, int filteringMin, int filteringMax, boolean hasDepthBuffer, int layerCount) {
+		this(width, height, GL_REPEAT, GL_REPEAT, filteringMin, filteringMax, hasDepthBuffer, layerCount);
+	}
+
+	public FrameBuffer(int width, int height, int wrapS, int wrapT, int filteringMin, int filteringMax, boolean hasDepthBuffer, int layerCount) {
+		this.hasDepthBuffer = hasDepthBuffer;
 		this.width = width;
 		this.height = height;
+		this.viewport.setViewport(0, 0, width, height);
+		this.clearcolor.setClearColor(0xFF000000);
+		this.layerCount = layerCount;
 
 		// check if GL_EXT_framebuffer_object can be used on this system
 		if (!GL.getCapabilities().GL_EXT_framebuffer_object) {
@@ -34,34 +60,28 @@ public class FrameBuffer {
 			frameBufferID = glGenFramebuffers();
 			glBindFramebuffer(GL_FRAMEBUFFER, frameBufferID);
 
-			if (this.useDepth) {
-				renderBufferID = GL30.glGenRenderbuffers();
+			if (this.hasDepthBuffer) {
+				renderBufferID = glGenRenderbuffers();
 			}
 
-			// create texture to render to
-			textureID = GLSM.instance.glGenTextures();
-			GLSM.instance.glBindTexture(textureID);
-
-			glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-			glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-
-			if (pixelated) {
-				// pixelated
-				glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-				glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+			if (layerCount == 1) {
+				// create texture to render to
+				textureID = TextureUtils.createTexture(width, height, wrapS, wrapT, filteringMin, filteringMax);
+				// attach texture to the fbo
+				glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureID, 0);
 			} else {
-				// blured
-				glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-				glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+				// create texture to render to
+				textureID = TextureUtils.createTextureArray(width, height, layerCount, wrapS, wrapT, filteringMin, filteringMax);
+				int[] drawBuffers = new int[layerCount];
+				for (int a = 0; a < layerCount; ++a) {
+					int attachmentID = GL_COLOR_ATTACHMENT0 + a;
+					drawBuffers[a] = attachmentID;
+					glFramebufferTexture3D(GL_FRAMEBUFFER, attachmentID, GL_TEXTURE_2D_ARRAY, textureID, 0, a);
+				}
+				glDrawBuffers(drawBuffers);
 			}
 
-			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, this.width, this.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, (java.nio.ByteBuffer) null);
-			GLSM.instance.glBindTexture(0);
-
-			// attach texture to the fbo
-			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureID, 0);
-
-			if (useDepth) {
+			if (hasDepthBuffer) {
 				// create and attach depth buffer to fbo
 				glBindRenderbuffer(GL_RENDERBUFFER, renderBufferID);
 				glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT32F, width, height);// 33190 GL_DEPTH_COMPONENT24
@@ -100,7 +120,7 @@ public class FrameBuffer {
 	public void clearFramebuffer(RenderContext.Clearcolor otherClearcolor) {
 		this.clearcolor.setClearcolor();
 
-		if (this.useDepth) {
+		if (this.hasDepthBuffer) {
 			glClearDepth(1f);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		} else {
@@ -109,19 +129,19 @@ public class FrameBuffer {
 		otherClearcolor.setClearcolor();
 	}
 
-	public void clearFramebuffer(int clearColorValue) {
+	public void clearFramebuffer(int otherClearcolor) {
 		this.clearcolor.setClearcolor();
 
-		if (this.useDepth) {
+		if (this.hasDepthBuffer) {
 			glClearDepth(1f);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		} else {
 			glClear(GL_COLOR_BUFFER_BIT);
 		}
-		float r = (float) (clearColorValue >> 16 & 255) / 255.0f;
-		float g = (float) (clearColorValue >> 8 & 255) / 255.0f;
-		float b = (float) (clearColorValue & 255) / 255.0f;
-		float a = (float) (clearColorValue >> 24 & 255) / 255.0f;
+		float r = (float) (otherClearcolor >> 16 & 255) / 255.0f;
+		float g = (float) (otherClearcolor >> 8 & 255) / 255.0f;
+		float b = (float) (otherClearcolor & 255) / 255.0f;
+		float a = (float) (otherClearcolor >> 24 & 255) / 255.0f;
 		glClearColor(r, g, b, a);
 	}
 

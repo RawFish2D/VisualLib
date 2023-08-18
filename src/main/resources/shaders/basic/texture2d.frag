@@ -2,11 +2,11 @@
 
 in vec2 vTexCoord;
 in vec4 vColor;
-uniform sampler2D texture;
 
-out vec4 colorOut;
+uniform sampler2D u_texture;
 
-void main()
-{
-	colorOut = texture2D(texture, vTexCoord) * vColor;
-}  
+out vec4 outColor;
+
+void main() {
+	outColor = texture(u_texture, vTexCoord) * vColor;
+}

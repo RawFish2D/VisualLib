@@ -3,6 +3,7 @@ package ua.rawfish2d.visuallib.vertexbuffer;
 import lombok.Getter;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
+import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.system.MemoryStack;
 
@@ -10,11 +11,14 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.ByteBuffer;
+import java.nio.IntBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 
 import static org.lwjgl.opengl.GL20.*;
+import static org.lwjgl.opengl.GL41.*;
 
 public class ShaderProgram {
 	@Getter
@@ -82,12 +86,6 @@ public class ShaderProgram {
 				throw new RuntimeException("Failed to compile shader: " + shaderCode);
 			}
 
-//			if (shaderType == GL_VERTEX_SHADER) {
-//				System.out.println("Vertex shader created successfully");
-//			} else if (shaderType == GL_FRAGMENT_SHADER) {
-//				System.out.println("Fragment shader created successfully");
-//			}
-
 			return shaderID;
 		} catch (RuntimeException exc) {
 			glDeleteShader(shaderID);
@@ -149,6 +147,41 @@ public class ShaderProgram {
 		return new String(Files.readAllBytes(Paths.get(fileName)));
 	}
 
+	/**
+	 * Requires at least OpenGL 4.1
+	 */
+	public boolean loadShaderBinary(ByteBuffer shaderBinary, int binaryFormat) throws IOException {
+		this.program = glCreateProgram();
+		glProgramBinary(program, binaryFormat, shaderBinary);
+		int status = glGetProgrami(program, GL_LINK_STATUS);
+		if (GL_FALSE == status) {
+			System.out.println("FAILED");
+			glDeleteProgram(program);
+			return false;
+		}
+		System.out.println("OK");
+		return true;
+	}
+
+	/**
+	 * Requires at least OpenGL 4.1
+	 */
+	public Binary getShaderBinary() {
+		int formats = glGetInteger(GL_NUM_PROGRAM_BINARY_FORMATS);
+		if (formats < 1) {
+			System.err.println("Driver doesnt support any binary formats");
+			return null;
+		}
+		final int length = glGetProgrami(program, GL_PROGRAM_BINARY_LENGTH);
+		final ByteBuffer buffer = BufferUtils.createByteBuffer(length);
+		final IntBuffer binaryFormat = BufferUtils.createIntBuffer(1);
+		final IntBuffer lengthBuffer = BufferUtils.createIntBuffer(1);
+		lengthBuffer.put(length);
+		lengthBuffer.flip();
+		glGetProgramBinary(program, lengthBuffer, binaryFormat, buffer);
+		return new Binary(buffer, binaryFormat, lengthBuffer);
+	}
+
 	private String readInputStreamToString(InputStream stream) {
 		StringBuilder stringBuilder = new StringBuilder();
 		try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))) {
@@ -161,5 +194,20 @@ public class ShaderProgram {
 			e.printStackTrace();
 		}
 		return stringBuilder.toString();
+	}
+
+	public static class Binary {
+		@Getter
+		private final ByteBuffer data;
+		@Getter
+		private final int shaderFormat;
+		@Getter
+		private final int length;
+
+		public Binary(ByteBuffer data, IntBuffer binaryFormat, IntBuffer length) {
+			this.data = data;
+			this.shaderFormat = binaryFormat.get();
+			this.length = length.get();
+		}
 	}
 }

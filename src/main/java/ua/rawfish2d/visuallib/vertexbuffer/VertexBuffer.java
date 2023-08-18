@@ -187,7 +187,7 @@ public class VertexBuffer {
 	public void uploadBuffers() {
 		if (buffersChanged) {
 			glBindBuffer(GL_ARRAY_BUFFER, vboID);
-			for (int index = 0; index < temporaryBuffers.size(); ++index) {
+			for (int index = 0; index < buffers.size(); ++index) {
 				final ByteBuffer buffer = getBuffer(index);
 				int offset = 0;
 				if (index > 0 && vertexAttributes.size() > 1) {

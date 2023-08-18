@@ -5,7 +5,7 @@ import lombok.Setter;
 import org.lwjgl.Version;
 import org.lwjgl.glfw.*;
 import org.lwjgl.opengl.GL;
-import org.lwjgl.system.Callback;
+import org.lwjgl.opengl.GLDebugMessageCallback;
 import org.lwjgl.system.MemoryStack;
 
 import java.nio.IntBuffer;
@@ -13,6 +13,7 @@ import java.nio.IntBuffer;
 import static org.lwjgl.glfw.Callbacks.glfwFreeCallbacks;
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL11.*;
+import static org.lwjgl.opengl.GL43.*;
 import static org.lwjgl.system.MemoryUtil.NULL;
 import static org.lwjgl.system.MemoryUtil.memAddress;
 
@@ -35,7 +36,7 @@ public class GWindow {
 	private GLFWCursorPosCallback cursorPosCallback;
 	public GLFWFramebufferSizeCallback fsCallback;
 	public GLFWScrollCallback scrollCallback;
-	public Callback debugProc;
+	public GLDebugMessageCallback debugProc;
 
 	public long hwnd = NULL;
 	@Setter
@@ -44,7 +45,11 @@ public class GWindow {
 	private int msaaLevel = 4;
 	private final boolean oldOpengl;
 	@Setter
-	private boolean alwaysOnTop;
+	private boolean alwaysOnTop = false;
+	@Setter
+	private boolean maximized = false;
+	@Setter
+	private boolean resizable = true;
 
 	public GWindow(int screenWidth, int screenHeight, boolean oldOpengl) {
 		this.oldOpengl = oldOpengl;
@@ -84,17 +89,22 @@ public class GWindow {
 
 	public void setKeyCallback(GLFWKeyCallback callback) {
 		this.keyCallback = callback;
-		glfwSetKeyCallback(hwnd, keyCallback);
+		glfwSetKeyCallback(hwnd, callback);
 	}
 
 	public void setMouseButtonCallback(GLFWMouseButtonCallback callback) {
 		this.mouseButtonCallback = callback;
-		glfwSetMouseButtonCallback(hwnd, mouseButtonCallback);
+		glfwSetMouseButtonCallback(hwnd, callback);
 	}
 
 	public void setCursorPosCallback(GLFWCursorPosCallback callback) {
 		this.cursorPosCallback = callback;
-		glfwSetCursorPosCallback(hwnd, cursorPosCallback);
+		glfwSetCursorPosCallback(hwnd, callback);
+	}
+
+	public void setFrameBufferResizeCallback(GLFWFramebufferSizeCallback callback) {
+		this.fsCallback = callback;
+		glfwSetFramebufferSizeCallback(hwnd, callback);
 	}
 
 	private void createWindow() {
@@ -124,6 +134,14 @@ public class GWindow {
 			glfwWindowHint(GLFW_FLOATING, GLFW_TRUE);
 		}
 
+		if (resizable) {
+			glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+		}
+
+		if (maximized) {
+			glfwWindowHint(GLFW_MAXIMIZED, GLFW_TRUE);
+		}
+
 		hwnd = glfwCreateWindow(displayWidth, displayHeight, "OpenGL Window", NULL, NULL);
 		if (hwnd == NULL) {
 			throw new RuntimeException("Failed to create the GLFW window");
@@ -141,7 +159,6 @@ public class GWindow {
 
 		// setWindowIcon("icons//32.png");
 		glfwSetInputMode(hwnd, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-		glfwSetWindowAttrib(hwnd, GLFW_RESIZABLE, GLFW_FALSE);
 		if (transparentFramebuffer) {
 			glfwSetWindowAttrib(hwnd, GLFW_DECORATED, GLFW_FALSE);
 		}
@@ -258,6 +275,16 @@ public class GWindow {
 
 	public void setMSAALevel(int msaaLevel) {
 		this.msaaLevel = msaaLevel;
+	}
+
+	/**
+	 * Requires OpenGL 4.3
+	 */
+	public void setDebugCallback(GLDebugMessageCallback callback) {
+		this.debugProc = callback;
+		glEnable(GL_DEBUG_OUTPUT);
+		glDebugMessageCallback(callback, 0);
+		glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
 	}
 
 	public void cleanUp() {

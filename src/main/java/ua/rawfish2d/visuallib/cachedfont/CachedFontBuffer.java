@@ -1,8 +1,6 @@
 package ua.rawfish2d.visuallib.cachedfont;
 
 import lombok.Getter;
-import org.lwjgl.opengl.GL11;
-import org.lwjgl.opengl.GL20;
 import ua.rawfish2d.visuallib.font.FontRenderer;
 import ua.rawfish2d.visuallib.framebuffer.FrameBuffer;
 import ua.rawfish2d.visuallib.utils.GLSM;
@@ -15,7 +13,8 @@ import java.io.InputStream;
 import java.nio.IntBuffer;
 import java.util.LinkedHashSet;
 
-import static org.lwjgl.opengl.GL11.GL_FLOAT;
+import static org.lwjgl.opengl.GL11.*;
+import static org.lwjgl.opengl.GL20.glUseProgram;
 
 public class CachedFontBuffer {
 	@Getter
@@ -33,7 +32,7 @@ public class CachedFontBuffer {
 	public CachedFontBuffer(GWindow window, FontRenderer fontRenderer) {
 		this.window = window;
 		this.fontRenderer = fontRenderer;
-		this.fbo = new FrameBuffer(window.getDisplayWidth(), window.getDisplayHeight(), true, false);
+		this.fbo = new FrameBuffer(window.getDisplayWidth(), window.getDisplayHeight(), GL_REPEAT, GL_REPEAT, GL_NEAREST, GL_NEAREST, false);
 
 		shaderProgram = new ShaderProgram();
 		InputStream vertStream = getInputStream("shaders/font/cachedFont.vert");
@@ -42,7 +41,7 @@ public class CachedFontBuffer {
 
 		vbo = new VertexBuffer();
 		vbo.setShader(shaderProgram);
-		vbo.setDrawType(GL11.GL_QUADS);
+		vbo.setDrawType(GL_QUADS);
 		final int maxObjects = 4096;
 		vbo.setMaxObjectCount(maxObjects);
 
@@ -75,7 +74,7 @@ public class CachedFontBuffer {
 	public void bake(RenderContext renderContext) {
 		glsm.glEnableTexture2D();
 		glsm.glEnableBlend();
-		glsm.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+		glsm.glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		glsm.glEnableAlpha();
 
 		fontRenderer.setScale(1f);
@@ -97,12 +96,12 @@ public class CachedFontBuffer {
 		vbo.canUpload();
 		vbo.uploadBuffers();
 
-		GL20.glUseProgram(shader.getProgram());
-		glsm.glBindTexture(fontRenderer.getFontTextureID());
+		glUseProgram(shader.getProgram());
+		glBindTexture(GL_TEXTURE_2D, fontRenderer.getFontTextureID());
 		shader.setUniform1f("u_scale", 1f);
 		shader.setUniform2f("u_resolution", window.getDisplayWidth(), window.getDisplayHeight());
 		vbo.draw();
-		GL20.glUseProgram(0);
+		glUseProgram(0);
 
 		fbo.unbindFramebuffer(renderContext.getViewport());
 	}
@@ -118,25 +117,23 @@ public class CachedFontBuffer {
 
 	public void render() {
 		final int shaderID = shaderProgram.getProgram();
-		GL20.glUseProgram(shaderID);
-		glsm.glBindTexture(fbo.getTextureID());
+		glUseProgram(shaderID);
+		glBindTexture(GL_TEXTURE_2D, fbo.getTextureID());
 		shaderProgram.setUniform1f("u_scale", 1f);
 		shaderProgram.setUniform2f("u_resolution", window.getDisplayWidth(), window.getDisplayHeight());
 		vbo.draw();
-		GL20.glUseProgram(0);
+		glUseProgram(0);
 	}
 
 	public void onRender() {
 		glsm.glEnableTexture2D();
 		glsm.glEnableBlend();
-		glsm.glBlendFunc(GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA);
+		glsm.glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 		glsm.glEnableAlpha();
-		glsm.glBindTexture(fbo.getTextureID());
-
+		glBindTexture(GL_TEXTURE_2D, fbo.getTextureID());
 		cachedList.forEach(cache -> cache.onRender(this));
-
-		glsm.glBindTexture(0);
-		glsm.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+		glBindTexture(GL_TEXTURE_2D, 0);
+		glsm.glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	}
 
 	private InputStream getInputStream(String fileName) {

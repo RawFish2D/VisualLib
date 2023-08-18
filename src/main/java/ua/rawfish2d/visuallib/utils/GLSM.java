@@ -3,7 +3,6 @@ package ua.rawfish2d.visuallib.utils;
 import org.lwjgl.opengl.GL11;
 
 public class GLSM {
-	protected int boundTexture = 0;
 
 	public static GLSM instance = new GLSM();
 
@@ -24,30 +23,6 @@ public class GLSM {
 
 	public void glDisableTexture2D() {
 		GL11.glDisable(GL11.GL_TEXTURE_2D);
-	}
-
-	public int glGenTextures() {
-		return GL11.glGenTextures();
-	}
-
-	public void glDeleteTextures(int id) {
-		GL11.glDeleteTextures(id);
-	}
-
-	public void glBindTexture(int textureID) {
-		if (textureID == boundTexture)
-			return;
-
-		boundTexture = textureID;
-		GL11.glBindTexture(GL11.GL_TEXTURE_2D, textureID);
-	}
-
-	public void glBindTexture(int target, int textureID) {
-		if (textureID == boundTexture)
-			return;
-
-		boundTexture = textureID;
-		GL11.glBindTexture(target, textureID);
 	}
 
 	public void glEnableBlend() {
@@ -112,37 +87,5 @@ public class GLSM {
 
 	public void glCullFace(int mode) {
 		GL11.glCullFace(mode);
-	}
-
-	@Deprecated
-	public void glEnableScissor() {
-	}
-
-	@Deprecated
-	public void glScissor(float x, float y, float sw, float sh) {
-	}
-
-	@Deprecated
-	public void glDisableScissor() {
-	}
-
-	@Deprecated
-	public void glColor(int c) {
-	}
-
-	@Deprecated
-	public void glColor(float v, float v1, float v2, float v3) {
-	}
-
-	@Deprecated
-	public void glAlphaFunc(int glNotequal, float v) {
-	}
-
-	@Deprecated
-	public void glShadeModel(int glSmooth) {
-	}
-
-	@Deprecated
-	public void glScale(float scale, float scale1, float v) {
 	}
 }

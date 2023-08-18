@@ -63,8 +63,8 @@ public abstract class BaseSystemFontRender extends BaseFontRender {
 
 		this.textureWidth = texture.width;
 		this.textureHeight = texture.height;
-		this.fontTextureID = GLSM.instance.glGenTextures();
-		GLSM.instance.glBindTexture(fontTextureID);
+		this.fontTextureID = glGenTextures();
+		glBindTexture(GL_TEXTURE_2D, fontTextureID);
 
 		if (pixelated) {
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -91,7 +91,7 @@ public abstract class BaseSystemFontRender extends BaseFontRender {
 			glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 			glPixelStorei(GL_PACK_ALIGNMENT, 1);
 		} else {
-			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, textureWidth, textureHeight, 0, GL_RGBA8, GL_UNSIGNED_INT_8_8_8_8_REV, texture.data);
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, textureWidth, textureHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, texture.data);
 		}
 	}
 
@@ -244,7 +244,7 @@ public abstract class BaseSystemFontRender extends BaseFontRender {
 
 	@Override
 	public void free() {
-		GLSM.instance.glDeleteTextures(fontTextureID);
+		glDeleteTextures(fontTextureID);
 	}
 
 	public void saveTexture(String fileName) {
@@ -303,7 +303,7 @@ public abstract class BaseSystemFontRender extends BaseFontRender {
 		//es.shutdown();
 		//});
 		buffer.clear();
-		glsm.glBindTexture(0);
+		glBindTexture(GL_TEXTURE_2D, 0);
 
 		// setting old viewport
 		glViewport(viewPortX, viewPortY, viewPortW, viewPortH);
@@ -312,8 +312,8 @@ public abstract class BaseSystemFontRender extends BaseFontRender {
 	private void uploadBufferedImageToGPU(BufferedImage bufferedImage, boolean pixelated) {
 		int width = bufferedImage.getWidth();
 		int height = bufferedImage.getHeight();
-		this.fontTextureID = GLSM.instance.glGenTextures();
-		GLSM.instance.glBindTexture(fontTextureID);
+		this.fontTextureID = glGenTextures();
+		glBindTexture(GL_TEXTURE_2D, fontTextureID);
 
 		if (pixelated) {
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -354,7 +354,7 @@ public abstract class BaseSystemFontRender extends BaseFontRender {
 				}
 			}
 			imageData.position(0).limit(bufferSize);
-			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA8, GL_UNSIGNED_INT_8_8_8_8_REV, imageData);
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, imageData);
 			imageData.clear();
 		}
 
