@@ -51,7 +51,7 @@ public class MathUtils {
 	}
 
 	public static float sqrt(float value) {
-		return (float) Math.sqrt((double) value);
+		return (float) Math.sqrt(value);
 	}
 
 	public static float sqrt(double value) {
@@ -75,7 +75,7 @@ public class MathUtils {
 	}
 
 	public static int round(float value) {
-		return (int) Math.round(value);
+		return Math.round(value);
 	}
 
 	public static int round(double value) {

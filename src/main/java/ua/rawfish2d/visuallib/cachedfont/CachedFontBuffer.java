@@ -54,13 +54,13 @@ public class CachedFontBuffer {
 
 		final IntBuffer indexBuffer = vbo.getIndexBuffer();
 		for (int a = 0; a < maxObjects * vbo.verticesPerObject; a += vbo.verticesPerObject) {
-			indexBuffer.put(a + 0);
+			indexBuffer.put(a);
 			indexBuffer.put(a + 1);
 			indexBuffer.put(a + 2);
 
 			indexBuffer.put(a + 2);
 			indexBuffer.put(a + 3);
-			indexBuffer.put(a + 0);
+			indexBuffer.put(a);
 		}
 		indexBuffer.flip();
 		vbo.uploadBuffers();

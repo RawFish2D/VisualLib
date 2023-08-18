@@ -131,7 +131,7 @@ public class FontRenderer extends BaseSystemFontRender {
 					this.drawChar(character, x, y);
 
 					if (this.boldStyle) {
-						offset += 1f * scale;
+						offset += scale;
 						this.drawChar(character, x + offset, y);
 					}
 					offset += charsData[character].charWidth * scale;
@@ -220,7 +220,7 @@ public class FontRenderer extends BaseSystemFontRender {
 					++index;
 				} else {
 					if (this.boldStyle) {
-						offset += 1f * scale;
+						offset += scale;
 					}
 					offset += charsData[character].charWidth * scale;
 					width += offset * scale;

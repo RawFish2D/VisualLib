@@ -240,7 +240,7 @@ public class SpriteBatcher {
 	}
 
 	public void saveDebugFramebuffer(String filename) {
-		TextureUtils.saveFrameBuffer(filename, frameBuffer.getFramebufferID(), frameBuffer.getWidth(), frameBuffer.getHeight());
+		TextureUtils.saveFrameBuffer(filename, frameBuffer.getFrameBufferID(), frameBuffer.getWidth(), frameBuffer.getHeight());
 	}
 
 	private RenderContext setupTextureContext(int objectCount) {

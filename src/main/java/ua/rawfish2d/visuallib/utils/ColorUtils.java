@@ -90,10 +90,7 @@ public class ColorUtils {
 	public static boolean isDark(float r, float g, float b) {
 		double dWhite = ColorUtils.colorDistance(r, g, b, 1f, 1f, 1f);
 		double dBlack = ColorUtils.colorDistance(r, g, b, 0f, 0f, 0f);
-		if (dBlack < dWhite) {
-			return true;
-		}
-		return false;
+		return dBlack < dWhite;
 	}
 
 	public static float clamp(float v) {

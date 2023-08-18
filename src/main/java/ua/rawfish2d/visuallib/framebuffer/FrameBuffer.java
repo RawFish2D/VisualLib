@@ -9,9 +9,13 @@ import static org.lwjgl.opengl.GL11.*;
 import static org.lwjgl.opengl.GL30.*;
 
 public class FrameBuffer {
+	@Getter
 	protected final int width;
+	@Getter
 	protected final int height;
+	@Getter
 	protected int frameBufferID = 0;
+	@Getter
 	protected int textureID = 0;
 	@Getter
 	protected final boolean hasDepthBuffer;
@@ -22,38 +26,17 @@ public class FrameBuffer {
 	@Getter
 	protected final int layerCount;
 
-	public FrameBuffer(int width, int height, boolean hasDepthBuffer) {
-		this(width, height, GL_REPEAT, GL_REPEAT, GL_NEAREST, GL_NEAREST, hasDepthBuffer);
-	}
-
-	public FrameBuffer(int width, int height, int filteringMin, int filteringMax, boolean hasDepthBuffer) {
-		this(width, height, GL_REPEAT, GL_REPEAT, filteringMin, filteringMax, hasDepthBuffer);
-	}
-
-	public FrameBuffer(int width, int height, int wrapS, int wrapT, int filteringMin, int filteringMax, boolean hasDepthBuffer) {
-		this(width, height, wrapS, wrapT, filteringMin, filteringMax, hasDepthBuffer, 1);
-	}
-
-	public FrameBuffer(int width, int height, boolean hasDepthBuffer, int layerCount) {
-		this(width, height, GL_REPEAT, GL_REPEAT, GL_NEAREST, GL_NEAREST, hasDepthBuffer, layerCount);
-	}
-
-	public FrameBuffer(int width, int height, int filteringMin, int filteringMax, boolean hasDepthBuffer, int layerCount) {
-		this(width, height, GL_REPEAT, GL_REPEAT, filteringMin, filteringMax, hasDepthBuffer, layerCount);
-	}
-
-	public FrameBuffer(int width, int height, int wrapS, int wrapT, int filteringMin, int filteringMax, boolean hasDepthBuffer, int layerCount) {
-		this.hasDepthBuffer = hasDepthBuffer;
+	public FrameBuffer(int width, int height, int textureID, int layerCount, boolean hasDepthBuffer) {
 		this.width = width;
 		this.height = height;
+		this.layerCount = layerCount;
+		this.hasDepthBuffer = hasDepthBuffer;
 		this.viewport.setViewport(0, 0, width, height);
 		this.clearcolor.setClearColor(0xFF000000);
-		this.layerCount = layerCount;
 
 		// check if GL_EXT_framebuffer_object can be used on this system
 		if (!GL.getCapabilities().GL_EXT_framebuffer_object) {
 			System.out.println("GL_EXT_framebuffer_object is not supported!");
-			return;
 		} else {
 			delete();
 
@@ -64,14 +47,12 @@ public class FrameBuffer {
 				renderBufferID = glGenRenderbuffers();
 			}
 
+			this.textureID = textureID;
 			if (layerCount == 1) {
-				// create texture to render to
-				textureID = TextureUtils.createTexture(width, height, wrapS, wrapT, filteringMin, filteringMax);
 				// attach texture to the fbo
 				glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureID, 0);
 			} else {
-				// create texture to render to
-				textureID = TextureUtils.createTextureArray(width, height, layerCount, wrapS, wrapT, filteringMin, filteringMax);
+				// attach texture to the fbo
 				int[] drawBuffers = new int[layerCount];
 				for (int a = 0; a < layerCount; ++a) {
 					int attachmentID = GL_COLOR_ATTACHMENT0 + a;
@@ -99,6 +80,18 @@ public class FrameBuffer {
 			clearFramebuffer(clearcolor);
 			glBindFramebuffer(GL_FRAMEBUFFER, 0);
 		}
+	}
+
+	public FrameBuffer(int width, int height, int wrapS, int wrapT, int filteringMin, int filteringMax, boolean hasDepthBuffer) {
+		this(width, height, wrapS, wrapT, filteringMin, filteringMax, hasDepthBuffer, 1);
+	}
+
+	public FrameBuffer(int width, int height, int wrapS, int wrapT, int filteringMin, int filteringMax, boolean hasDepthBuffer, int layerCount) {
+		this(width, height,
+				layerCount == 1 ?
+						TextureUtils.createTexture(width, height, wrapS, wrapT, filteringMin, filteringMax) :
+						TextureUtils.createTextureArray(width, height, layerCount, wrapS, wrapT, filteringMin, filteringMax),
+				layerCount, hasDepthBuffer);
 	}
 
 	public void setClearColor(int color) {
@@ -182,21 +175,5 @@ public class FrameBuffer {
 			glDeleteRenderbuffers(renderBufferID);
 			renderBufferID = 0;
 		}
-	}
-
-	public int getTextureID() {
-		return textureID;
-	}
-
-	public int getWidth() {
-		return width;
-	}
-
-	public int getHeight() {
-		return height;
-	}
-
-	public int getFramebufferID() {
-		return frameBufferID;
 	}
 }
